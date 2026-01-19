@@ -1,4 +1,14 @@
 {
+  "limo_v2": {
+    "file_name": "limo_v2.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
   "identity": {
     "file_name": "identity.json"
   },

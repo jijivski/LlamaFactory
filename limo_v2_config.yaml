@@ -1,0 +1,42 @@
+### model
+# model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen2.5-32B-Instruct
+model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen3-32B
+
+### method
+stage: sft
+do_train: true
+finetuning_type: full  # 使用lora降低显存需求，或用full做全参数微调
+# deepspeed: examples/deepspeed/ds_z3_config.json
+deepspeed: examples/deepspeed/ds_z3_offload_config.json
+flash_attn: fa2
+
+### dataset
+dataset: limo_v2  # 使用我们刚配置的数据集名称
+cutoff_len: 16384
+overwrite_cache: true
+preprocessing_num_workers: 64
+template: qwen
+
+# ### LoRA参数 (如果使用lora)
+# lora_rank: 64
+# lora_alpha: 128
+# lora_target: all
+
+### output
+output_dir: ../ckpts/limo_v2_output
+logging_steps: 1
+save_strategy: epoch
+plot_loss: true
+overwrite_output_dir: true
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1
+learning_rate: 5.0e-6
+num_train_epochs: 15
+lr_scheduler_type: cosine
+warmup_ratio: 0.0
+bf16: true
+ddp_timeout: 180000000
+
+disable_gradient_checkpointing: false  
