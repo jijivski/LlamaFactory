@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING, BinaryIO, Literal, NotRequired, Optional, Type
 
 import numpy as np
 import torch
-import torchaudio
+# import torchaudio
+torchaudio=None
 from transformers.image_utils import get_image_size, is_valid_image, to_numpy_array
 from transformers.models.mllama.processing_mllama import (
     convert_sparse_cross_attention_mask_to_dense,

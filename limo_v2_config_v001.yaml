@@ -1,13 +1,12 @@
 ### model
-# model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen2.5-32B-Instruct
-model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen3-32B
+model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen2.5-32B-Instruct
 
 ### method
 stage: sft
 do_train: true
 finetuning_type: full  # 使用lora降低显存需求，或用full做全参数微调
-# deepspeed: examples/deepspeed/ds_z3_config.json
-deepspeed: examples/deepspeed/ds_z3_offload_config.json
+deepspeed: examples/deepspeed/ds_z3_config.json
+# deepspeed: examples/deepspeed/ds_z3_offload_config.json
 flash_attn: fa2
 
 ### dataset
@@ -23,7 +22,7 @@ template: qwen
 # lora_target: all
 
 ### output
-output_dir: ../ckpts/limo_v2_output
+output_dir: ../ckpts/0119_LIMO_v2_v001
 logging_steps: 1
 save_strategy: epoch
 plot_loss: true
@@ -40,3 +39,5 @@ bf16: true
 ddp_timeout: 180000000
 
 disable_gradient_checkpointing: false  
+report_to: wandb
+run_name: 0119_LIMO_v2_v001
