@@ -81,3 +81,134 @@ Example 2:
 - valid_len=10, max_mask_ratio=0.5
 - min_keep=ceil(10 * (1 - 0.5))=5
 - start_idx is clamped to >= 5 (so mask at most 50%)
+
+
+
+
+TRUNCATION_ENABLE=false              # 是否启用截断
+
+# 阈值选择方式
+TRUNCATION_THRESHOLD_MODE=absolute   # absolute (绝对值) | ratio (比例)
+TRUNCATION_THRESHOLD=2.0            # 绝对阈值模式下使用的值
+TRUNCATION_RATIO=0.1                # 比例模式下使用的值 (Loss 的 Top-P 比例)
+
+# 掩码策略
+TRUNCATION_MASK_MODE=after_first_high  # 策略：首个高点后截断 | 仅掩码高点 | 随机掩码
+TRUNCATION_INCLUDE_TRIGGER=true        # 是否包含触发点本身
+
+# 保护机制 (默认值为 0/1.0，即原始简单模式)
+TRUNCATION_MIN_PREFIX_TOKENS=0       # 最小保留的前缀 Token 数
+TRUNCATION_MAX_MASK_RATIO=1.0        # 最大掩码比例限制
+TRUNCATION_MIN_HIGH_RUN=1            # 触发截断所需的连续高 Loss Token 数量
+
+# 随机掩码参数
+TRUNCATION_RANDOM_RATIO=0.1          # 随机掩码的比例
+
+# 日志与调试
+TRUNCATION_LOG_EVERY_N_STEPS=50            # 批量日志记录频率
+TRUNCATION_LOG_DETAILED=false              # 是否记录详细日志
+TRUNCATION_LOG_DETAILED_EVERY_N_STEPS=100  # 详细日志采样步长
+TRUNCATION_DEBUG=false                     # 调试模式
+
+
+
+  Ablation set (建议顺序)
+
+  1. Baseline（对照）
+
+  - 目的：确认所有指标变化来自 truncation
+  - 配置：TRUNCATION_ENABLE=false
+
+  2. A1 Naive: absolute + after_first_high
+
+  - 目的：验证“高 loss 后截断”是否整体有正向信号
+  - 配置：
+
+  TRUNCATION_ENABLE=true
+  TRUNCATION_THRESHOLD_MODE=absolute
+  TRUNCATION_THRESHOLD=2.0
+  TRUNCATION_MASK_MODE=after_first_high
+  TRUNCATION_INCLUDE_TRIGGER=true
+  TRUNCATION_MIN_PREFIX_TOKENS=0
+  TRUNCATION_MAX_MASK_RATIO=1.0
+  TRUNCATION_MIN_HIGH_RUN=1
+
+  - 预期：mask 比例可能偏高，容易伤前部；这是“最简单验证有效性”的版本。
+
+  3. A2 Protected: absolute + after_first_high + 保护
+
+  - 目的：缓解“前部高 loss 更高”的问题，避免学不到前缀
+  - 配置：
+
+  TRUNCATION_ENABLE=true
+  TRUNCATION_THRESHOLD_MODE=absolute
+  TRUNCATION_THRESHOLD=2.0
+  TRUNCATION_MASK_MODE=after_first_high
+  TRUNCATION_INCLUDE_TRIGGER=true
+  TRUNCATION_MIN_PREFIX_TOKENS=32        # 或 0.2*len 的等价（先固定）
+  TRUNCATION_MAX_MASK_RATIO=0.5
+  TRUNCATION_MIN_HIGH_RUN=2
+
+  - 预期：更稳，mask 比例更可控。
+
+  4. A3 Ratio: ratio + after_first_high
+
+  - 目的：测试对尺度不敏感的阈值（loss 分布变化时更稳）
+  - 配置：
+
+  TRUNCATION_ENABLE=true
+  TRUNCATION_THRESHOLD_MODE=ratio
+  TRUNCATION_RATIO=0.1
+  TRUNCATION_MASK_MODE=after_first_high
+  TRUNCATION_MIN_PREFIX_TOKENS=32
+  TRUNCATION_MAX_MASK_RATIO=0.5
+  TRUNCATION_MIN_HIGH_RUN=2
+
+  - 预期：比 absolute 更“自适应”，但分布变化可能导致截断比例变化。
+
+  5. A4 Mask‑high‑only
+
+  - 目的：只移除高 loss token，不截断后续，衡量“噪声过滤”本身的价值
+  - 配置（绝对阈值或 ratio 均可）：
+
+  TRUNCATION_ENABLE=true
+  TRUNCATION_THRESHOLD_MODE=absolute
+  TRUNCATION_THRESHOLD=2.0
+  TRUNCATION_MASK_MODE=mask_high_only
+  TRUNCATION_MIN_PREFIX_TOKENS=32
+
+  6. A5 Random mask（负对照）
+
+  - 目的：排除“降低有效 token 数”带来的假收益
+  - 配置：
+
+  TRUNCATION_ENABLE=true
+  TRUNCATION_MASK_MODE=mask_random
+  TRUNCATION_RANDOM_RATIO=0.1
+  TRUNCATION_MIN_PREFIX_TOKENS=32
+
+
+  7. A6 Mask‑high‑only
+
+  - 目的：在前面绝对值或者ratio的基础上, 看看是否要带上困惑本身,
+
+
+
+
+  为什么这样设计
+
+  - A1 vs Baseline：验证“高 loss 截断”是否有用。
+  - A2 vs A1：验证“保护前缀 + 连续触发”是否抑制过度截断。
+  - A3：验证“比例阈值”是否比绝对阈值稳定。
+  - A4：验证“局部去噪”是否比“后缀截断”更安全。
+  - A5：负对照，证明收益不是来自“纯减少训练 token”。
+  - A6：验证是否要带上触发的token
+
+  建议的观察指标
+
+  - 训练 loss / eval loss / eval ppl
+  - truncation 比例（truncation/batch_ratio、mean_seq_ratio）
+  - 训练稳定性（是否出现 0 loss 过多、梯度异常）
+
+  如果你愿意，我们还可以加一个 A1b：TRUNCATION_INCLUDE_TRIGGER=false 来判断“触发点是否保留”对学习影响是否显著。
+   我认为学个5epo应该能看出东西来, 把test加上, 然后看看这里的应该如何设置

@@ -219,8 +219,12 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             logger.warning_rank0_once("Truncation fallback: missing logits or labels.")
             return super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
 
-        shift_logits = logits[..., :-1, :].contiguous()
+        shift_logits = logits[..., :-1, :].contiguous() #因为后面用了 .view(...)，view 只接受连续内存。切片后的 tensor 可能是非连续的，用 contiguous() 保证内存布局连续，避免报错或隐式拷贝。
         shift_labels = labels[..., 1:].contiguous()
+            # - logits 形状是 (batch, seq_len, vocab).
+            # - 做 next‑token prediction，要用 t 的 logits 对齐 t+1 的 label，所以 logits 去掉最后一个 time step：:-1。
+            # - 逗号是为了显式保留最后一维 vocab：logits[..., :-1, :] 得到形状 (batch, seq_len-1, vocab)。
+            # - 如果写成 logits[..., :-1]，会切到 最后一维（vocab），变成 (batch, seq_len, vocab-1)，这是错的。
         vocab_size = shift_logits.size(-1)
         per_token_loss = F.cross_entropy(
             shift_logits.view(-1, vocab_size),
@@ -247,6 +251,11 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
     def _build_truncation_mask(self, per_token_loss: torch.Tensor, shift_labels: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
+            
+            # - per_token_loss 需要梯度（对 logits 反传），但 生成 mask 的逻辑不需要梯度。
+            # - 在 _build_truncation_mask(...) 里用了 with torch.no_grad()，这让阈值比较、argmax、conv1d 这些操作不进入计算图，减少显存和计算图大小。
+            # - 结果就是：梯度只通过 “被保留的 token 的 loss” 反传，mask 作为常量。
+
             valid_mask = shift_labels != IGNORE_INDEX
             truncation_mask = torch.zeros_like(valid_mask, dtype=torch.bool)
             if self.truncation_mask_mode == "mask_random":
