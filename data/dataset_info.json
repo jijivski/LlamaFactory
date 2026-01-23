@@ -9,6 +9,26 @@
       "system": "system"
     }
   },
+  "limo_v2_train": {
+    "file_name": "limo_v2_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
+  "limo_v2_test": {
+    "file_name": "limo_v2_test.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system"
+    }
+  },
   "identity": {
     "file_name": "identity.json"
   },

@@ -1,0 +1,74 @@
+### model
+model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen2.5-32B-Instruct
+# model_name_or_path: /mnt/cfs_bj_mt/models/opensource_checkpoints/Qwen/Qwen3-32B
+
+### method
+stage: sft
+do_train: true
+finetuning_type: full  # 使用lora降低显存需求，或用full做全参数微调
+deepspeed: examples/deepspeed/ds_z3_config.json
+# deepspeed: examples/deepspeed/ds_z3_offload_config.json
+flash_attn: fa2
+
+### dataset
+dataset: limo_v2_train  # 使用我们刚配置的数据集名称
+cutoff_len: 16384
+overwrite_cache: true
+preprocessing_num_workers: 64
+template: qwen
+
+
+eval_dataset: limo_v2_test  # 测试/评估数据集  
+eval_strategy: steps  # 评估策略：steps/epoch/no  
+eval_steps: 50       # 每50步进行一次评估  
+
+# ### LoRA参数 (如果使用lora)A
+# lora_rank: 64
+# lora_alpha: 128
+# lora_target: all
+
+### output
+output_dir: ../ckpts/0119_LIMO_v2_v003
+logging_steps: 1
+# save_strategy: epoch
+save_strategy: steps          # 修改：从 epoch 改为 steps
+save_steps: 100
+plot_loss: true
+# overwrite_output_dir: true
+overwrite_output_dir: false   # 关键：想resume的话就要false
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1
+learning_rate: 5.0e-6
+num_train_epochs: 5
+# num_train_epochs: 15          # 修改：设置为你最终想要达到的总 Epoch 数（如果你想再跑 15 个，总共就是 16）
+lr_scheduler_type: cosine
+warmup_ratio: 0.0
+bf16: true
+ddp_timeout: 180000000
+
+disable_gradient_checkpointing: false  
+report_to: wandb
+run_name: 0119_LIMO_v2_v003
+
+
+# 当 resume_from_checkpoint 为 None（未设置）时，系统会自动检查并恢复训练 parser.py:424-440 ：
+
+# if (  
+#     training_args.resume_from_checkpoint is None  
+#     and training_args.do_train  
+#     and os.path.isdir(training_args.output_dir)  
+#     and not training_args.overwrite_output_dir  
+#     and can_resume_from_checkpoint  
+# ):  
+#     last_checkpoint = get_last_checkpoint(training_args.output_dir)  
+#     if last_checkpoint is not None:  
+#         training_args.resume_from_checkpoint = last_checkpoint
+
+# 自动恢复需要满足以下条件：
+
+# resume_from_checkpoint 未设置（为 None）
+# do_train 为 True
+# 输出目录存在且不为空
+# overwrite_output_dir 为 False
